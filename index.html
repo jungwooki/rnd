@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>MPS REPORT | 의료진 통합 매뉴얼 (Pro)</title>
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Pretendard', 'Apple SD Gothic Neo', 'sans-serif'],
+          },
+          colors: {
+            // M-Report Theme (Indigo/Blue)
+            mental: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3' },
+            // P-Report Theme (Sky/Cyan)
+            physio: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985' },
+            // S-Report Theme (Emerald/Green)
+            structure: { 50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 500: '#10b981', 600: '#059669', 700: '#047857', 800: '#065f46' },
+            slatebrand: { 800: '#1e293b', 900: '#0f172a' }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body { font-family: 'Pretendard', sans-serif; background-color: #f8fafc; color: #0f172a; -webkit-tap-highlight-color: transparent; }
+    ::-webkit-scrollbar { width: 0px; background: transparent; }
+    
+    .modal-enter { animation: slideUp 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+    .modal-leave { animation: slideDown 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+    .overlay-enter { animation: fadeIn 0.25s ease-out forwards; }
+    
+    @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes slideDown { from { transform: translateY(0); opacity: 1; } to { transform: translateY(100%); opacity: 0; } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .glass-header {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    
+    .guide-card:active { transform: scale(0.98); }
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom, 24px); }
+    
+    /* Typography Utilities for Modals */
+    .modal-prose h4 { font-weight: 800; color: #1e293b; margin-top: 1.5rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+    .modal-prose h4:first-child { margin-top: 0; }
+    .modal-prose p { font-size: 0.875rem; color: #475569; line-height: 1.6; margin-bottom: 1rem; }
+    .modal-prose ul { margin-bottom: 1rem; }
+    .modal-prose li { font-size: 0.8125rem; color: #475569; line-height: 1.5; margin-bottom: 0.25rem; padding-left: 1rem; position: relative; }
+    .modal-prose li::before { content: "•"; position: absolute; left: 0; color: #94a3b8; }
+    .km-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1rem; border-left: 4px solid #cbd5e1; }
+    .km-box.mental { border-left-color: #6366f1; background: #eef2ff; }
+    .km-box.physio { border-left-color: #0ea5e9; background: #f0f9ff; }
+    .km-box.structure { border-left-color: #10b981; background: #ecfdf5; }
+  </style>
+</head>
+<body class="antialiased">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const Icon = ({ name, size = 20, className = "" }) => {
+      useEffect(() => { if (window.lucide) window.lucide.createIcons(); }, [name, size, className]);
+      return <i data-lucide={name} style={{ width: size, height: size }} className={className}></i>;
+    };
+
+    // ==========================================
+    // DATA 1: M-REPORT (Mental Performance)
+    // ==========================================
+    const mGuideData = [
+      {
+        id: 'm-overview',
+        icon: 'brain',
+        title: 'M-REPORT 개요 및 총평 (MGI)',
+        subtitle: 'MGI 척도 해석 및 한의학적 멘탈 접근법',
+        content: (
+          <div className="modal-prose">
+            <h4><Icon name="info" size={18} className="text-mental-600"/> M-REPORT 목적</h4>
+            <p>
+              M-REPORT는 PCDEQ(Psychological Characteristics of Developing Excellence Questionnaire) 모델을 기반으로 성장기 엘리트 선수의 심리 기술과 태도를 평가합니다. 이는 '성격 테스트'가 아니라, <b>훈련과 경기를 대하는 현재의 심리적 기술 수준</b>을 보여주는 지도입니다.
+            </p>
+            
+            <h4><Icon name="bar-chart-2" size={18} className="text-mental-600"/> MGI (Mental Growth Index) 해석 기준</h4>
+            <p>전체 13개 지표의 평균 종합 점수(6.0 만점)입니다.</p>
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center gap-2"><span className="px-2 py-1 bg-mental-100 text-mental-700 text-[10px] font-bold rounded">4.8 이상</span> <span className="text-sm font-bold">강점 (매우 탄탄함)</span></div>
+              <div className="flex items-center gap-2"><span className="px-2 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded">4.2 ~ 4.7</span> <span className="text-sm font-bold">양호 (안정적 구간)</span></div>
+              <div className="flex items-center gap-2"><span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-[10px] font-bold rounded">3.6 ~ 4.1</span> <span className="text-sm font-bold">보통 (강점/보완점 혼재)</span></div>
+              <div className="flex items-center gap-2"><span className="px-2 py-1 bg-red-100 text-red-700 text-[10px] font-bold rounded">3.5 이하</span> <span className="text-sm font-bold">주의 (에너지 고갈, 멘탈 지지 필요)</span></div>
+            </div>
+
+            <h4><Icon name="activity" size={18} className="text-mental-600"/> 스포츠 한의학적 관점 (심신일여)</h4>
+            <div className="km-box mental">
+              <p className="font-bold text-mental-800 text-sm mb-1">한의학에서는 멘탈과 피지컬을 하나로 봅니다 (心身一如).</p>
+              <ul className="!mb-0">
+                <li><b>심담허겁(心膽虛怯):</b> 수행 불안, 과도한 긴장, 실전에서 제 실력을 못 냄. (경기 전 복통, 불면 동반)</li>
+                <li><b>간기울결(肝氣鬱結):</b> 실수 후 회복력 저하, 잦은 자책, 분노 조절 어려움. (가슴 답답함, 한숨 동반)</li>
+                <li><b>심비양허(心脾兩虛):</b> 집중력 저하, 무기력, 훈련 태도 저하. 체력(기허)이 떨어지면서 뇌로 가는 혈류가 부족해짐.</li>
+              </ul>
+              <p className="text-xs text-mental-700 mt-2 font-medium">※ M-REPORT의 낮은 점수는 단순한 '의지 부족'이 아니라 <b>기혈(氣血)의 불균형 상태</b>임을 부모님께 인지시키고 침/약침/한약 치료의 당위성을 설명합니다.</p>
+            </div>
+          </div>
+        )
+      },
+      {
+        id: 'm-core5',
+        icon: 'target',
+        title: '5대 핵심 멘탈지수 정밀 판독',
+        subtitle: '경기 긴장 관리, 회복력 등 코어 지표 분석',
+        content: (
+          <div className="modal-prose">
+            <p>경기의 성패를 좌우하는 가장 핵심적인 5가지 요인입니다. 3.5점 이하일 경우 즉각적인 개입이 필요합니다.</p>
+            
+            <div className="border-l-4 border-mental-500 pl-3 mb-4">
+              <h4 className="!mt-0 !mb-1 text-[15px]">1. 경기 긴장 관리 (수행 불안)</h4>
+              <p className="!mb-1">압박 상황에서도 평정심을 유지하는 힘. 낮을 경우 큰 경기에서 실수가 급증합니다.</p>
+              <div className="text-xs bg-slate-50 p-2 rounded">
+                <b>강화:</b> 자신만의 루틴 만들기 (예: 입장 전 심호흡 3번), 불안을 긍정적 흥분으로 재해석하기.<br/>
+                <b>처방:</b> 온담탕(溫膽湯), 청심환 류 (심담허겁 치료)
+              </div>
+            </div>
+
+            <div className="border-l-4 border-mental-500 pl-3 mb-4">
+              <h4 className="!mt-0 !mb-1 text-[15px]">2. 실수 후 회복력</h4>
+              <p className="!mb-1">실수 뒤 감정에 머물지 않고 즉시 다음 플레이로 돌아오는 힘입니다.</p>
+              <div className="text-xs bg-slate-50 p-2 rounded">
+                <b>강화:</b> '멘탈 셧다운(Shutdown)' 훈련. 실수 직후 손뼉을 치거나 특정 단어("다음 공!")를 외쳐 상황을 강제 종료시킴.<br/>
+                <b>처방:</b> 소요산(逍遙散), 시호가용골모려탕 (울결된 간기를 소통)
+              </div>
+            </div>
+
+            <div className="border-l-4 border-slate-300 pl-3 mb-4">
+              <h4 className="!mt-0 !mb-1 text-[15px]">3. 집중 자기조절력</h4>
+              <p className="!mb-1">감정과 충동이 흔들릴 때 본래 전술과 포지션에 집중하는 통제력입니다.</p>
+              <div className="text-xs bg-slate-50 p-2 rounded">
+                <b>강화:</b> 3초 호흡법, 화가 날 때 스스로에게 "지금 내 포지션 롤은?" 질문하기.<br/>
+                <b>처방:</b> 귀비탕(歸脾湯), 총명탕 류 (심비양허 보완 및 인지기능 개선)
+              </div>
+            </div>
+
+            <div className="border-l-4 border-slate-300 pl-3 mb-4">
+              <h4 className="!mt-0 !mb-1 text-[15px]">4. 경기 준비 능력</h4>
+              <p className="!mb-1">목표 설정과 시뮬레이션(루틴) 능력입니다. 체계적인 선수는 이 지표가 높습니다.</p>
+              <div className="text-xs bg-slate-50 p-2 rounded">
+                <b>강화:</b> 경기 전날 장비 챙기기, 수면 시간 지키기 등 본인만의 체크리스트 작성.
+              </div>
+            </div>
+
+            <div className="border-l-4 border-slate-300 pl-3 mb-4">
+              <h4 className="!mt-0 !mb-1 text-[15px]">5. 주변 지원 환경</h4>
+              <p className="!mb-1">코치, 부모 등과의 소통 능력 및 긍정적 피드백 수용력입니다.</p>
+              <div className="text-xs bg-slate-50 p-2 rounded">
+                <b>가이드:</b> 이는 아이 본인보다 <b>부모/지도자의 태도</b>에 크게 좌우됩니다. 결과보다 과정을 칭찬하는 가정 환경이 필수적입니다.
+              </div>
+            </div>
+          </div>
+        )
+      },
+      {
+        id: 'm-detail8',
+        icon: 'layers',
+        title: '8대 세부 심리지표 분석',
+        subtitle: '심상 훈련, 평가 독립성, 실패 회복력 등',
+        content: (
+          <div className="modal-prose">
+            <p>훈련과 실전에서 발현되는 구체적인 심리 기술입니다. 약점 지표 파악 후 맞춤형 코칭을 제공합니다.</p>
+
+            <div className="space-y-3">
+              <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+                <div className="font-bold text-sm text-slate-800 mb-1">경기 안정성 & 심리 안정성</div>
+                <p className="text-[11px] text-slate-600 mb-1">경기 흐름(템포, 벤치 분위기, 실점)이 불리해질 때 무너지지 않는 능력.</p>
+                <p className="text-[11px] text-mental-600 font-bold">코칭: 경기 전 '불안 시 대처 행동 1가지' 미리 정해두기.</p>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+                <div className="font-bold text-sm text-slate-800 mb-1">평가 독립성</div>
+                <p className="text-[11px] text-slate-600 mb-1">코치나 부모, 관중의 반응에 흔들리지 않고 내 플레이를 유지하는 능력. (요즘 유소년들에게 가장 취약한 지표)</p>
+                <p className="text-[11px] text-mental-600 font-bold">코칭: 벤치나 부모님석 쳐다보지 않기 루틴. 스스로 '오늘의 미션' 평가하기.</p>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+                <div className="font-bold text-sm text-slate-800 mb-1">자기조절 학습 & 훈련 태도</div>
+                <p className="text-[11px] text-slate-600 mb-1">스스로 약점을 분석하고 훈련에 몰입하는 성실성 지표.</p>
+                <p className="text-[11px] text-mental-600 font-bold">코칭: 매 훈련 직후 "오늘 배운 것 1줄 노트 쓰기" 지도.</p>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+                <div className="font-bold text-sm text-slate-800 mb-1">심상 훈련 활용</div>
+                <p className="text-[11px] text-slate-600 mb-1">이미지 트레이닝을 실전에 활용하는 기술. 높은 선수는 창의성이 뛰어남.</p>
+                <p className="text-[11px] text-mental-600 font-bold">코칭: 자기 전 성공했던 플레이 3번 반복해서 상상하기.</p>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+                <div className="font-bold text-sm text-slate-800 mb-1">주위 적응력 & 실패 회복력(Resilience)</div>
+                <p className="text-[11px] text-slate-600 mb-1">포지션 변경, 거대한 실책 등 위기 상황에서 팀의 중심으로 복귀하는 강인함.</p>
+                <p className="text-[11px] text-mental-600 font-bold">코칭: 실패를 성장을 위한 '데이터베이스'로 객관화하는 훈련. "왜 틀렸어?"가 아닌 "어떻게 바꿀까?" 질문하기.</p>
+              </div>
+            </div>
+          </div>
+        )
+      },
+      {
+        id: 'm-parents',
+        icon: 'users',
+        title: '보호자 상담 가이드 (Do & Don\'t)',
+        subtitle: '부모님의 언어가 선수의 멘탈을 만듭니다',
+        content: (
+          <div className="modal-prose">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <h4 className="!mt-0 flex items-center gap-2 text-blue-800"><Icon name="message-circle" size={18}/> 이렇게 말해 주세요 (DO)</h4>
+              <ul className="text-blue-900 !mb-0">
+                <li>"결과랑 상관없이 오늘 끝까지 뛰어준 모습이 정말 멋졌어."</li>
+                <li>"아까 그 상황에서 넌 어떤 생각이 들었어? (경청)"</li>
+                <li>"오늘 경기에서 스스로 제일 칭찬해주고 싶은 장면 하나만 말해볼까?"</li>
+                <li>"지금은 배우는 과정이니까 실수해도 괜찮아. 다음엔 어떻게 해볼지 생각해보자."</li>
+              </ul>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <h4 className="!mt-0 flex items-center gap-2 text-red-800"><Icon name="slash" size={18}/> 이런 반응은 줄여 주세요 (DON'T)</h4>
+              <ul className="text-red-900 !mb-0">
+                <li>"아까 거기서 왜 패스를 안 하고 슈팅을 했어?" (차 안에서 복기 금지)</li>
+                <li>"너는 왜 항상 중요한 순간에 멘탈이 흔들려?" (성격으로 규정짓기)</li>
+                <li>"저쪽 팀 누구누구는 1학년인데도 너보다 잘 뛰더라." (비교하기)</li>
+                <li>아이가 실수했을 때 부모님석에서 깊은 한숨 쉬거나 고개 젓기. (아이는 부모님의 바디랭귀지를 귀신같이 읽습니다.)</li>
+              </ul>
+            </div>
+          </div>
+        )
+      }
+    ];
+
+    // ==========================================
+    // DATA 2: P-REPORT (Physical & Physio)
+    // ==========================================
+    const pGuideData = [
+      {
+        id: 'p-overview',
+        icon: 'activity',
+        title: 'P-REPORT 개요 및 총평 (Risk Index)',
+        subtitle: '자율신경과 성장 가중치를 더한 손상 예측 모델',
+        content: (
+          <div className="modal-prose">
+            <h4><Icon name="info" size={18} className="text-physio-600"/> P-REPORT 목적</h4>
+            <p>
+              P-REPORT는 선수의 <b>자율신경계(HRV), 체성분(ECW), 초음파(USG) 데이터</b>를 종합하여 오버트레이닝(OTS), 스포츠 에너지 결핍(RED-S), 비접촉성 근골격계 손상을 <b>사전에 예측하고 예방</b>하는 메디컬 리포트입니다.
+            </p>
+
+            <h4><Icon name="alert-triangle" size={18} className="text-physio-600"/> Growth Risk Index (종합 부상위험도)</h4>
+            <p>자율신경의 피로도 점수(OTS)에 <b>급성장기(PHV) 취약성 가중치</b>를 적용하여 매우 보수적이고 예민한 손상 예측 모델을 제공합니다.</p>
+            <ul>
+              <li><b className="text-red-600">50점 이상 (위험):</b> 비접촉성 손상 및 오버트레이닝 확률 극대화. 즉각 훈련 강도 조절 필수.</li>
+              <li><b className="text-yellow-600">25~49점 (주의):</b> 컨디셔닝 우선. 고강도 훈련 자제.</li>
+              <li><b className="text-green-600">24점 이하 (양호):</b> 훈련 소화 가능 상태.</li>
+            </ul>
+
+            <h4><Icon name="heart-pulse" size={18} className="text-physio-600"/> 스포츠 한의학적 관점 (미병과 기혈양허)</h4>
+            <div className="km-box physio">
+              <p className="font-bold text-physio-800 text-sm mb-1">인대가 파열되기 전, 기혈(氣血)의 고갈이 먼저 옵니다.</p>
+              <ul className="!mb-0">
+                <li><b>허로(虛勞):</b> OTS(과부하)의 한의학적 명칭. 쉴 틈 없는 훈련으로 진액(음)이 마르고 기가 고갈된 상태.</li>
+                <li><b>습담(濕痰)과 어혈(瘀血):</b> ECW(세포외수분비) 수치가 높고 초음파상 붓기가 관찰될 때. 사혈, 부항, 약침의 필수 적응증.</li>
+              </ul>
+            </div>
+          </div>
+        )
+      },
+      {
+        id: 'p-phv',
+        icon: 'trending-up',
+        title: '1. 성장단계(PHV) 평가 기준 및 가중치',
+        subtitle: '부상 가중치를 결정하는 핵심 변수',
+        content: (
+          <div className="modal-prose">
+            <p>
+              유소년 선수는 뼈가 먼저 자라고 근육/인대가 나중에 늘어나는 특성상, 급성장기(PHV)에 관절 장력이 극대화되어 부상 위험이 폭발적으로 증가합니다. <b>P-REPORT는 PHV 단계에 따라 부상 위험도 점수에 가중치를 부여합니다.</b>
+            </p>
+            
+            <div className="bg-white rounded-lg border border-slate-200 overflow-hidden mb-4">
+              <table className="w-full text-left text-[11px] sm:text-xs">
+                <thead className="bg-slate-50 text-slate-600 font-bold border-b">
+                  <tr><th className="p-2.5">단계</th><th className="p-2.5">설명</th><th className="p-2.5">위험 가중치</th></tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  <tr><td className="p-2.5 font-bold">PHV -2</td><td className="p-2.5">성장기 이전 (안정기)</td><td className="p-2.5 text-green-600">x 0.9 (감소)</td></tr>
+                  <tr><td className="p-2.5 font-bold">PHV -1</td><td className="p-2.5">성장 가속 시작</td><td className="p-2.5 text-slate-600">x 1.0 (기본)</td></tr>
+                  <tr className="bg-red-50"><td className="p-2.5 font-bold text-red-600">PHV 0</td><td className="p-2.5 text-red-800 font-medium">최대 급성장기 (위험구간)</td><td className="p-2.5 font-bold text-red-600">x 1.35 (위험폭증)</td></tr>
+                  <tr className="bg-yellow-50"><td className="p-2.5 font-bold text-yellow-700">PHV 1</td><td className="p-2.5 text-yellow-800">성장 둔화기</td><td className="p-2.5 font-bold text-yellow-600">x 1.15 (주의)</td></tr>
+                  <tr><td className="p-2.5 font-bold">PHV 2</td><td className="p-2.5">성장 종료 단계</td><td className="p-2.5 text-slate-600">x 1.0 (기본)</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="text-xs bg-slate-50 p-3 rounded text-slate-600 border border-slate-100">
+              * 문진 시 최근 3~6개월간의 키 성장 속도와 오스굿씨, 세버씨 병 등의 성장통 호소 여부를 파악하여 PHV 0 또는 1 단계를 설정하십시오.
+            </div>
+          </div>
+        )
+      },
+      {
+        id: 'p-hrv-core',
+        icon: 'cpu',
+        title: '2. 자율신경 2축 & 4사분면 정밀 분석',
+        subtitle: 'SDNN(체력) vs RMSSD(회복력) 교차 분석',
+        content: (
+          <div className="modal-prose">
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="border border-slate-200 rounded-lg p-3">
+                <div className="text-xs font-bold text-slate-500 mb-1">X축 (만성 탄력성)</div>
+                <div className="font-extrabold text-slate-800 text-[15px]">SDNN</div>
+                <ul className="text-[11px] mt-1 text-slate-600 space-y-1 !mb-0 !pl-0">
+                  <li className="!before:hidden !pl-0"><span className="text-green-500 font-bold">60 이상:</span> 양호</li>
+                  <li className="!before:hidden !pl-0"><span className="text-yellow-500 font-bold">40~59:</span> 주의</li>
+                  <li className="!before:hidden !pl-0"><span className="text-red-500 font-bold">40 미만:</span> 위험 (기허, 허로)</li>
+                </ul>
+              </div>
+              <div className="border border-slate-200 rounded-lg p-3">
+                <div className="text-xs font-bold text-slate-500 mb-1">Y축 (급성 회복력)</div>
+                <div className="font-extrabold text-slate-800 text-[15px]">RMSSD</div>
+                <ul className="text-[11px] mt-1 text-slate-600 space-y-1 !mb-0 !pl-0">
+                  <li className="!before:hidden !pl-0"><span className="text-green-500 font-bold">50 이상:</span> 양호</li>
+                  <li className="!before:hidden !pl-0"><span className="text-yellow-500 font-bold">30~49:</span> 주의</li>
+                  <li className="!before:hidden !pl-0"><span className="text-red-500 font-bold">30 미만:</span> 위험 (음허)</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="bg-red-50 border-l-4 border-red-600 p-3 mb-4 rounded-r-lg">
+              <h4 className="!mt-0 !mb-1 text-red-800 text-sm flex items-center gap-1"><Icon name="siren" size={16}/> [경고] 과반응 (Hyper-responsive)</h4>
+              <p className="text-xs text-red-800 !mb-1 font-bold">RMSSD &gt; 130 이상 또는 SDNN &gt; 131 이상</p>
+              <p className="text-[11px] text-red-700 leading-relaxed">
+                수치가 높다고 좋은 것이 절대 아닙니다! 몸이 한계치 이상으로 스트레스를 받아 생존을 위해 <b>강제로 부교감신경을 최대치로 끌어올린 방어기제(음양리결 직전, 허열)</b>입니다. 근육 긴장도가 완전히 풀려있어 <b>십자인대 파열, 햄스트링 파열 위험이 90% 이상인 초위험 상태</b>입니다. 무조건 즉시 휴식을 명하십시오.
+              </p>
+            </div>
+
+            <h4 className="text-[14px]">4사분면(Quadrant) 진단 가이드</h4>
+            <div className="space-y-2">
+              <div className="bg-green-50 p-2 rounded border border-green-200 text-xs">
+                <b className="text-green-700">Q1 (최상위 컨디션):</b> SDNN 60↑, RMSSD 50↑. 강도 높은 전술/체력 훈련 완벽 소화 가능.
+              </div>
+              <div className="bg-blue-50 p-2 rounded border border-blue-200 text-xs">
+                <b className="text-blue-700">Q2 (일시적 피로):</b> SDNN 60↑, RMSSD 50↓. 기초체력은 좋으나 어제 무리함. 가벼운 리커버리 위주 훈련.
+              </div>
+              <div className="bg-orange-50 p-2 rounded border border-orange-200 text-xs">
+                <b className="text-orange-700">Q3 (만성 피로/주의):</b> SDNN 60↓, RMSSD 50↑. 체력이 바닥(기허)인데 억지로 쉬어서 회복력만 뜬 상태. 실전 투입 시 금방 퍼짐. 보약 필수.
+              </div>
+              <div className="bg-slate-100 p-2 rounded border border-slate-300 text-xs">
+                <b className="text-slate-700">Q4 (체력 고갈/위험):</b> SDNN 60↓, RMSSD 50↓. 배터리 완전 방전. 즉각적인 의료 개입 및 며칠간의 훈련 오프 권고.
+              </div>
+            </div>
+          </div>
+        )
+      },
+      {
+        id: 'p-hrv-sub',
+        icon: 'activity-square',
+        title: '3. 자율신경 보조 지표',
+        subtitle: 'LF, HF, LF/HF 비율, 종합 스트레스',
+        content: (
+          <div className="modal-prose">
+            <ul className="space-y-4">
+              <li className="!pl-0 !before:hidden">
+                <div className="border-l-4 border-physio-400 pl-3">
+                  <div className="font-bold text-slate-800 text-[14px]">LF (교감신경 / 액셀러레이터)</div>
+                  <div className="text-xs text-slate-600 mb-1">에너지 소모, 긴장, 흥분. (정상: 40 ~ 65 nu)</div>
+                  <div className="text-xs text-slate-600 bg-slate-50 p-2 rounded">
+                    <b className="text-red-600">&gt; 80 (과열):</b> 극도의 긴장, 분노, 스트레스. 부상위험 증가. (심화항성)<br/>
+                    <b className="text-blue-600">&lt; 25 (번아웃):</b> 교감신경조차 작동하지 않는 무기력, 만성 피로 상태.
+                  </div>
+                </div>
+              </li>
+              <li className="!pl-0 !before:hidden">
+                <div className="border-l-4 border-green-400 pl-3">
+                  <div className="font-bold text-slate-800 text-[14px]">HF (부교감신경 / 브레이크)</div>
+                  <div className="text-xs text-slate-600 mb-1">휴식, 수면의 질, 회복력. (정상: 45 이상)</div>
+                  <div className="text-xs text-slate-600 bg-slate-50 p-2 rounded">
+                    <b className="text-green-600">&ge; 45:</b> 회복 기능 정상 작동.<br/>
+                    <b className="text-red-600">&lt; 30 (회복 불가):</b> 수면의 질 최악, 근육에 쌓인 젖산과 염증 미청소 (음허).
+                  </div>
+                </div>
+              </li>
+              <li className="!pl-0 !before:hidden">
+                <div className="border-l-4 border-purple-400 pl-3">
+                  <div className="font-bold text-slate-800 text-[14px]">LF/HF Ratio (자율신경 균형)</div>
+                  <div className="text-xs text-slate-600 mb-1">정상: 0.9 ~ 2.9</div>
+                  <div className="text-xs text-slate-600 bg-slate-50 p-2 rounded">
+                    <b className="text-red-600">&gt; 4.0:</b> 심각한 교감 우위. 과긴장 지속. (수승화강 실패, 음허화동)<br/>
+                    <b className="text-blue-600">&lt; 0.5:</b> 심각한 부교감 우위. 우울, 무기력.
+                  </div>
+                </div>
+              </li>
+              <li className="!pl-0 !before:hidden">
+                <div className="border-l-4 border-orange-400 pl-3">
+                  <div className="font-bold text-slate-800 text-[14px]">종합 스트레스 지수 (유비오점수)</div>
+                  <div className="text-xs text-slate-600 mb-1">육체적/정신적 부하 종합. (정상: 35 미만)</div>
+                  <div className="text-xs text-slate-600 bg-slate-50 p-2 rounded">
+                    <b className="text-yellow-600">35 ~ 45:</b> 주의 구간<br/>
+                    <b className="text-red-600">&gt; 45:</b> 위험 구간 (OTS 과부하 가중치 부여됨)
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+        )
+      },
+      {
+        id: 'p-body-comp',
+        icon: 'droplets',
+        title: '4. 체성분 지표 (염증 & RED-S)',
+        subtitle: 'ECW-Ratio 및 체지방률 해석 기준',
+        content: (
+          <div className="modal-prose">
+            <h4><Icon name="activity" size={18} className="text-physio-600"/> ECW-Ratio (세포외수분비) - 염증과 부종</h4>
+            <p>
+              근육과 세포 밖의 수분 비율입니다. 훈련 후 발생한 근육의 미세 손상이 회복되지 못하고 <b>만성 염증과 붓기(습담, 어혈)</b>로 정체되어 있는지를 평가하는 가장 강력한 지표입니다.
+            </p>
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 mb-4">
+              <ul className="!mb-0 text-xs space-y-1">
+                <li><span className="font-bold text-green-600">0.385 이하:</span> 양호 (염증 없음, 가벼운 몸상태)</li>
+                <li><span className="font-bold text-yellow-600">0.386 ~ 0.390:</span> 주의 (국소 부위 미세 염증 시작)</li>
+                <li><span className="font-bold text-red-600">0.390 초과:</span> <b>위험 (만성 염증/부종, 어혈 축적 상태)</b>. 부항, 사혈, 약침의 강력한 적응증.</li>
+              </ul>
+            </div>
+
+            <h4><Icon name="flame" size={18} className="text-physio-600"/> 체지방률 (Body Fat %) - 에너지 저장고</h4>
+            <p>
+              극단적인 저지방은 <b>RED-S(스포츠 에너지 결핍증)</b>를 유발하여 골밀도 저하와 피로골절의 원인이 됩니다.
+            </p>
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+              <ul className="!mb-0 text-xs space-y-1">
+                <li><span className="font-bold text-green-600">10.0% ~ 15.0%:</span> 엘리트 유소년 최적 구간</li>
+                <li><span className="font-bold text-yellow-600">8.0~9.9% / 15.1~18.0%:</span> 주의 구간</li>
+                <li><span className="font-bold text-red-600">&lt; 8.0% / &gt; 18.0%:</span> 위험 (RED-S 징후 또는 과체중 부하)</li>
+              </ul>
+            </div>
+          </div>
+        )
+      },
+      {
+        id: 'p-ultrasound',
+        icon: 'scan-line',
+        title: '5. 초음파 판독 기준 (USG)',
+        subtitle: '성장기 하체 필수 관절 평가',
+        content: (
+          <div className="modal-prose">
+            <p>성장기 선수에게 가장 빈발하는 3대 관절 부위(무릎/슬개건, 아킬레스건, 족저근막)의 구조적/염증성 변화를 확인합니다.</p>
+            
+            <h4><Icon name="search" size={18} className="text-physio-600"/> 판독 등급 기준 (L/R 개별 평가)</h4>
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 mb-4">
+              <ul className="!mb-0 text-xs space-y-2">
+                <li><b className="text-green-600">양호 (Green):</b> 건(Tendon) 두께 정상, Fibrillar pattern 선명, 무향(Anechoic) 체액 없음.</li>
+                <li><b className="text-yellow-600">주의 (Yellow):</b> 가벼운 두께 증가(비대), 경미한 저에코(Hypoechoic) 영역 존재, 미세 삼출액. <b>(미세손상 및 어혈 형성기 - 훈련 조절 요함)</b></li>
+                <li><b className="text-red-600">위험 (Orange/Red):</b> 명확한 파열(Tear) 징후, 심한 도플러 신호(신생혈관 증식, 급성염증), 오스굿씨/세버병의 뼛조각(Fragmentation) 박리. <b>(훈련 중단 및 집중 치료 요함)</b></li>
+              </ul>
+            </div>
+
+            <h4><Icon name="target" size={18} className="text-physio-600"/> 주요 체크 포인트</h4>
+            <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm text-xs space-y-2">
+              <p><b>• 무릎 (슬개건):</b> Osgood-Schlatter 또는 Sinding-Larsen-Johansson 증후군 징후 (골연골 경계면 불규칙성, 뼛조각) 확인.</p>
+              <p><b>• 아킬레스건:</b> Sever's disease (종골 부착부 염증) 및 건 실질 내의 저에코 비후 확인.</p>
+              <p><b>• 족저근막:</b> 종골 부착부 두께 4mm 이상 비후, 저에코성 변화 확인.</p>
+            </div>
+          </div>
+        )
+      },
+      {
+        id: 'p-comments',
+        icon: 'edit-3',
+        title: '6. 종합 소견 작성 가이드',
+        subtitle: '의료진 코멘트 작성 예시 (Copy & Paste 용)',
+        content: (
+          <div className="modal-prose">
+            <p>시스템이 자동 초안을 제공하지만, 의료진이 아래 예시를 참고하여 환자 맞춤형으로 수정하는 것이 좋습니다.</p>
+            
+            <div className="space-y-4">
+              <div className="border border-red-200 rounded-lg overflow-hidden">
+                <div className="bg-red-50 px-3 py-2 font-bold text-red-800 text-xs flex justify-between">
+                  상황 1: 과반응 (초고위험) <span className="text-red-600">RMSSD &gt; 130</span>
+                </div>
+                <div className="p-3 text-[11px] leading-relaxed bg-white text-slate-700">
+                  "⚠️ [경고 소견] 현재 피로가 한계치를 넘어 몸이 강제로 휴식을 요구하는 '과반응(방어기제)' 상태입니다. 근육의 긴장이 극도로 풀려있어 지금 훈련이나 경기에 투입될 경우 햄스트링이나 인대 파열 등 대형 부상 위험이 90% 이상입니다. 최소 3일간의 완전 휴식과 함께, 고갈된 기혈을 채우는 집중 회복 치료가 시급합니다."
+                </div>
+              </div>
+
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <div className="bg-slate-100 px-3 py-2 font-bold text-slate-800 text-xs flex justify-between">
+                  상황 2: 성장기 (PHV 0) + 만성 피로 (Q3/Q4)
+                </div>
+                <div className="p-3 text-[11px] leading-relaxed bg-white text-slate-700">
+                  "현재 키가 가장 빠르게 자라는 급성장기에 진입하여 관절의 장력이 팽팽해져 부상 위험이 기본적으로 높은 시기입니다. 여기에 자율신경 검사상 기초 체력(SDNN)마저 저하되어 있어 뼈와 근육으로 가야 할 에너지가 부족한 상태(RED-S 우려)입니다. 당분간 스프린트 훈련 비중을 줄이고 영양 섭취와 수면 시간을 대폭 늘려야 성장과 운동 두 마리 토끼를 잡을 수 있습니다."
+                </div>
+              </div>
+
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <div className="bg-slate-100 px-3 py-2 font-bold text-slate-800 text-xs flex justify-between">
+                  상황 3: 부종/염증 수치 (ECW) 상승 시
+                </div>
+                <div className="p-3 text-[11px] leading-relaxed bg-white text-slate-700">
+                  "체성분 검사상 세포외수분비(ECW)가 높게 관찰됩니다. 이는 최근 강도 높은 훈련 후 하체 근육 곳곳에 미세한 염증과 붓기(어혈)가 빠져나가지 못하고 쌓여있다는 뜻입니다. 초음파상 관찰된 아킬레스건/슬개건의 뻣뻣함도 이와 연관이 깊습니다. 운동 후 철저한 냉찜질과 함께 본원의 순환 개선 치료(침/약침) 병행을 권장합니다."
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+    ];
+
+    // ==========================================
+    // DATA 3: S-REPORT (Structure & Growth)
+    // ==========================================
+    const sGuideData = [
+      {
+        id: 's-overview',
+        icon: 'bar-chart-2',
+        title: 'S-REPORT 개요 및 총평',
+        subtitle: '다중 백분위 성장곡선과 뼈나이 기반 PAH 분석',
+        content: (
+          <div className="modal-prose">
+            <h4><Icon name="info" size={18} className="text-structure-600"/> S-REPORT 목적</h4>
+            <p>
+              단순히 '현재 키가 얼마다'를 넘어, 아이의 <b>골연령(뼈나이), 유전적 예측키(MPH), 통계적 예측키(PAH), 그리고 성장 단계(PHV)</b>를 입체적으로 분석하여, 현재의 피지컬 상태가 '성장의 어느 지점'을 통과하고 있는지 보호자와 지도자에게 명확한 로드맵을 제시합니다.
+            </p>
+
+            <h4><Icon name="ruler" size={18} className="text-structure-600"/> MPH vs PAH의 이해</h4>
+            <ul>
+              <li><b>MPH (유전적 예측키):</b> 부모님의 키만으로 계산한 선천적 목표치. (남: 부+모+13/2, 여: 부+모-13/2)</li>
+              <li><b>PAH (현실적 예측키):</b> 현재 키와 골연령(TW3 또는 Greulich-Pyle 기준)을 반영하여 도출한 실제 도달 가능 키.</li>
+            </ul>
+            <p className="text-xs text-slate-500 bg-slate-50 p-2 rounded">
+              ※ PAH가 MPH보다 현저히 낮다면 성장 방해 요인(수면부족, 영양결핍, 과도한 훈련, 소화기 허약)이 존재한다는 뜻이며, 적극적인 <b>한의학적 성장 치료(보신, 건비)</b>가 필요합니다.
+            </p>
+
+            <h4><Icon name="leaf" size={18} className="text-structure-600"/> 스포츠 한의학적 관점 (신주골, 비주기육)</h4>
+            <div className="km-box structure">
+              <p className="font-bold text-structure-800 text-sm mb-1">성장의 두 축: 신장(선천)과 비위(후천)</p>
+              <ul className="!mb-0">
+                <li><b>신주골(腎主骨):</b> 뼈의 성장은 타고난 신기(腎氣)에 달려 있습니다. 녹용, 숙지황 등으로 골수를 채워야 골연령 지연 및 성장통을 잡을 수 있습니다.</li>
+                <li><b>비주기육(脾主肌肉):</b> 살과 근육은 소화기(비위)가 만듭니다. 체중 백분위가 낮고 밥을 안 먹는 선수는 백출, 산사 등으로 비위를 튼튼히 해야 RED-S를 막습니다.</li>
+              </ul>
+            </div>
+          </div>
+        )
+      },
+      {
+        id: 's-phv',
+        icon: 'trending-up',
+        title: '성장 단계 (PHV) 5단계 정밀 판독',
+        subtitle: 'Peak Height Velocity 구간별 부상 위험도',
+        content: (
+          <div className="modal-prose">
+            <p>유소년 선수의 부상 사이클은 이 PHV 단계를 정확히 추적하는 것에서 시작됩니다.</p>
+            
+            <div className="space-y-3">
+              <div className="border border-slate-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded">Pre-PHV</span>
+                  <h4 className="!m-0 text-sm">성장 가속 준비기</h4>
+                </div>
+                <p className="text-[11px] text-slate-600 mb-1">1년에 4~5cm 꾸준히 크는 시기. 코디네이션(협응력)과 밸런스 습득의 황금기.</p>
+                <p className="text-[11px] text-structure-600 font-bold">▶ 처방: 기초 체력 비축 (건비위 위주)</p>
+              </div>
+
+              <div className="border border-slate-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2 py-0.5 bg-structure-100 text-structure-700 text-[10px] font-bold rounded">Stage 1</span>
+                  <h4 className="!m-0 text-sm">성장 가속기 (Take-off)</h4>
+                </div>
+                <p className="text-[11px] text-slate-600 mb-1">성장 속도가 붙기 시작함. 갑자기 잠이 늘고 먹는 양이 급증. 몸이 뻣뻣해지기 시작.</p>
+              </div>
+
+              <div className="border-2 border-red-400 bg-red-50 rounded-lg p-3 shadow-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded">Stage 2 (PHV)</span>
+                  <h4 className="!m-0 text-sm text-red-800">최대 급성장기 (부상 위험 최상)</h4>
+                </div>
+                <p className="text-[12px] text-red-800 mb-1 leading-relaxed">
+                  1년에 8~12cm 폭발적으로 성장. <b>뼈는 길어지는데 근육과 인대가 따라 늘어나지 못해 관절의 텐션(장력)이 최고조에 달함.</b><br/>
+                  가장 빈번하게 오스굿씨병, 세버병, 햄스트링 파열이 일어남.
+                </p>
+                <p className="text-[11px] text-red-700 font-bold bg-white p-1.5 rounded inline-block mt-1">▶ 지도: 플라이오메트릭(점프), 강한 스프린트 훈련 50% 축소. 스트레칭 2배 증가. 보신(補腎) 처방 필수.</p>
+              </div>
+
+              <div className="border border-slate-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded">Stage 3 ~ 4</span>
+                  <h4 className="!m-0 text-sm">감속기 및 종료 초기</h4>
+                </div>
+                <p className="text-[11px] text-slate-600 mb-1">키 성장은 둔화되지만 뼈의 골밀도가 촘촘해지고 근육량이 붙기 시작함. 근력 및 파워 훈련의 적기.</p>
+              </div>
+            </div>
+          </div>
+        )
+      },
+      {
+        id: 's-type',
+        icon: 'users',
+        title: '6대 성장 유형 (Type) 상담 가이드',
+        subtitle: '현재 키와 성숙 속도를 조합한 부모 상담법',
+        content: (
+          <div className="modal-prose">
+            <p>아래 6가지 조합을 통해 부모님의 불안감을 해소하고 장기적인 육성 플랜을 제시합니다.</p>
+
+            <div className="space-y-4">
+              <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg">
+                <h4 className="!mt-0 !mb-1 text-[14px] text-slate-800 flex items-center gap-2"><Icon name="hourglass" size={16}/> 1. 작은 키 + 지연 성장형 (Late Bloomer)</h4>
+                <p className="text-xs text-slate-600 mb-2">골연령이 어려 현재 키는 작지만 최종 성장 잠재력이 큰 유형.</p>
+                <div className="text-[11px] text-slate-700 bg-white p-2 rounded border border-slate-100">
+                  <b>상담 멘트:</b> "어머니, 지금 아이가 몸싸움에서 밀린다고 절대 조급해하지 마세요. 우리 아이는 '대기만성형'입니다. 지금은 스피드나 파워보다 공간 인지와 발밑 기술을 정교하게 다듬어 놓으면, 나중에 키가 컸을 때 완벽한 무기가 됩니다. 다만 소화흡수력이 떨어져 성장이 지연되지 않도록 소화기를 보강하는 건비 한약이 필요합니다."
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg">
+                <h4 className="!mt-0 !mb-1 text-[14px] text-slate-800 flex items-center gap-2"><Icon name="zap" size={16}/> 2. 큰 키 + 조기 성장형 (Early Maturation)</h4>
+                <p className="text-xs text-slate-600 mb-2">골연령이 빨라 또래보다 피지컬이 압도적인 유형. 성조숙증 우려.</p>
+                <div className="text-[11px] text-slate-700 bg-white p-2 rounded border border-slate-100">
+                  <b>상담 멘트:</b> "현재 팀에서 피지컬로 에이스 역할을 하고 있을 겁니다. 하지만 뼈나이가 빨라 성장판이 남들보다 일찍 닫힐 수 있습니다. 고등학교 이후 피지컬 우위가 사라질 때를 대비해 철저하게 기술과 지능적인 플레이를 훈련시켜야 합니다. 체지방을 엄격히 관리하여 성숙이 더 빨라지는 것을 막아야 합니다."
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg">
+                <h4 className="!mt-0 !mb-1 text-[14px] text-slate-800 flex items-center gap-2"><Icon name="star" size={16}/> 3. 큰 키 + 지연 성장형 (Ideal Type)</h4>
+                <p className="text-xs text-slate-600 mb-2">현재 키도 큰데 뼈나이까지 어린, 가장 축복받은 스포츠 유망주 체형.</p>
+                <div className="text-[11px] text-slate-700 bg-white p-2 rounded border border-slate-100">
+                  <b>상담 멘트:</b> "가장 이상적인 프로 레벨 피지컬 조건을 갖췄습니다. 최종 185cm 이상도 바라볼 수 있습니다. 이 아이의 유일한 적은 '부상'뿐입니다. 키가 계속 크느라 관절이 항상 뻣뻣할 것이니, 무조건 폼롤러와 마사지에 시간을 투자하고 관절을 보호하는 예방적 관리가 생명입니다."
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg">
+                <p className="text-xs text-slate-500 italic">※ 그 외 <b>작은키+평균성장</b>, <b>작은키+조기성장</b>, <b>큰키+평균성장</b> 유형도 현재 위치를 직시하고 장점을 극대화하는 방향으로 지도합니다.</p>
+              </div>
+            </div>
+          </div>
+        )
+      }
+    ];
+
+    const App = () => {
+      const [activeTab, setActiveTab] = useState('P'); // Default to P-REPORT for emphasis
+      const [activeModal, setActiveModal] = useState(null);
+      const [isClosing, setIsClosing] = useState(false);
+
+      // Handle scrolling lock when modal is open
+      useEffect(() => {
+        if (activeModal) document.body.style.overflow = 'hidden';
+        else document.body.style.overflow = 'auto';
+        return () => { document.body.style.overflow = 'auto'; }
+      }, [activeModal]);
+
+      const openModal = (id) => {
+        setActiveModal(id);
+        setIsClosing(false);
+      };
+
+      const closeModal = () => {
+        setIsClosing(true);
+        setTimeout(() => {
+          setActiveModal(null);
+          setIsClosing(false);
+        }, 300); // Matches animation duration
+      };
+
+      const currentGuideData = 
+        activeTab === 'M' ? mGuideData : 
+        activeTab === 'P' ? pGuideData : 
+        sGuideData;
+
+      const activeData = [...mGuideData, ...pGuideData, ...sGuideData].find(d => d.id === activeModal);
+
+      const getThemeConfig = (tab) => {
+        switch(tab) {
+          case 'M': return { tabBg: 'bg-mental-600 text-white', iconBg: 'bg-mental-100 text-mental-700', activeTabClass: 'bg-white text-mental-700 shadow-sm', tabBtnHover: 'hover:text-mental-600' };
+          case 'P': return { tabBg: 'bg-physio-600 text-white', iconBg: 'bg-physio-100 text-physio-700', activeTabClass: 'bg-white text-physio-700 shadow-sm', tabBtnHover: 'hover:text-physio-600' };
+          case 'S': return { tabBg: 'bg-structure-600 text-white', iconBg: 'bg-structure-100 text-structure-700', activeTabClass: 'bg-white text-structure-700 shadow-sm', tabBtnHover: 'hover:text-structure-600' };
+          default: return { tabBg: 'bg-slate-800 text-white', iconBg: 'bg-slate-100 text-slate-700', activeTabClass: 'bg-white text-slate-700 shadow-sm', tabBtnHover: 'hover:text-slate-700' };
+        }
+      };
+
+      const theme = getThemeConfig(activeTab);
+
+      return (
+        <div className="min-h-screen pb-safe">
+          {/* Main Header */}
+          <header className="glass-header sticky top-0 z-10 pt-5 pb-3 px-5 shadow-sm border-b border-slate-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`w-9 h-9 rounded-xl ${theme.tabBg} flex items-center justify-center shadow-lg transition-all duration-300`}>
+                <Icon name="book-open-check" size={20} />
+              </div>
+              <div>
+                <h1 className="text-slate-900 font-extrabold text-[19px] leading-tight tracking-tight">MPS 의료진 매뉴얼</h1>
+                <p className="text-slate-500 text-[11px] font-bold tracking-wide uppercase mt-0.5">Clinical Interpretation Guide</p>
+              </div>
+            </div>
+            
+            {/* Custom Segmented Control */}
+            <div className="flex bg-slate-100/80 p-1.5 rounded-xl border border-slate-200/50 backdrop-blur-sm">
+              <button 
+                onClick={() => setActiveTab('M')} 
+                className={`flex-1 py-2.5 text-[13px] font-extrabold rounded-lg transition-all duration-200 ${activeTab === 'M' ? theme.activeTabClass : `text-slate-500 ${getThemeConfig('M').tabBtnHover}`}`}
+              >
+                M-REPORT
+              </button>
+              <button 
+                onClick={() => setActiveTab('P')} 
+                className={`flex-1 py-2.5 text-[13px] font-extrabold rounded-lg transition-all duration-200 ${activeTab === 'P' ? theme.activeTabClass : `text-slate-500 ${getThemeConfig('P').tabBtnHover}`}`}
+              >
+                P-REPORT
+              </button>
+              <button 
+                onClick={() => setActiveTab('S')} 
+                className={`flex-1 py-2.5 text-[13px] font-extrabold rounded-lg transition-all duration-200 ${activeTab === 'S' ? theme.activeTabClass : `text-slate-500 ${getThemeConfig('S').tabBtnHover}`}`}
+              >
+                S-REPORT
+              </button>
+            </div>
+          </header>
+
+          {/* List Content */}
+          <main className="p-4 max-w-md mx-auto space-y-3 pb-12">
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/70 mb-2">
+              <p className="text-[13px] text-slate-600 leading-relaxed font-semibold">
+                아래 항목을 탭하여 <b>{activeTab === 'M' ? '멘탈 및 심리 기술' : activeTab === 'P' ? '부상 예측 및 피지컬' : '성장 곡선 및 PHV'}</b> 분석에 대한 상세 판독 기준과 한의학적 상담 가이드를 확인하세요.
+              </p>
+            </div>
+
+            {currentGuideData.map((item, index) => (
+              <button
+                key={item.id}
+                onClick={() => openModal(item.id)}
+                className="guide-card w-full text-left bg-white rounded-2xl p-4 shadow-sm border border-slate-200/60 flex items-start gap-4 transition-transform duration-150 active:bg-slate-50"
+              >
+                <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${theme.iconBg}`}>
+                  <Icon name={item.icon} size={22} />
+                </div>
+                <div className="flex-1 min-w-0 pt-0.5">
+                  <h3 className="font-extrabold text-slate-900 text-[15px] mb-1 truncate">{item.title}</h3>
+                  <p className="text-[12px] text-slate-500 line-clamp-2 leading-snug font-medium">{item.subtitle}</p>
+                </div>
+                <div className="pt-2 text-slate-300 shrink-0">
+                  <Icon name="chevron-right" size={20} />
+                </div>
+              </button>
+            ))}
+          </main>
+
+          {/* Full Screen Modal */}
+          {activeModal && activeData && (
+            <div 
+              className={`fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm ${isClosing ? 'opacity-0 transition-opacity duration-300' : 'overlay-enter'}`}
+              onClick={closeModal}
+            >
+              <div 
+                className={`bg-white w-full max-w-md h-[88vh] rounded-t-3xl flex flex-col shadow-2xl ${isClosing ? 'modal-leave' : 'modal-enter'}`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Modal Drag Handle */}
+                <div className="w-full flex justify-center pt-3 pb-1 shrink-0" onClick={closeModal}>
+                  <div className="w-12 h-1.5 bg-slate-300 rounded-full"></div>
+                </div>
+
+                {/* Modal Header */}
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full ${theme.iconBg} flex items-center justify-center shadow-sm`}>
+                      <Icon name={activeData.icon} size={20} />
+                    </div>
+                    <h2 className="font-extrabold text-slate-900 text-[16px] leading-tight max-w-[220px]">{activeData.title}</h2>
+                  </div>
+                  <button 
+                    onClick={closeModal}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 active:bg-slate-300 transition-colors"
+                  >
+                    <Icon name="x" size={18} />
+                  </button>
+                </div>
+                
+                {/* Modal Body */}
+                <div className="p-6 overflow-y-auto overscroll-contain flex-1 bg-white pb-10">
+                  {activeData.content}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
